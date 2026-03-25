@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="description" content="نظام إدارة الصحة والسلامة المهنية - HSE SafetyPro Enterprise" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>HSE SafetyPro Enterprise</title>
+    <script>
+      // Register Service Worker for Offline Support
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('[PWA] Service Worker registered:', registration.scope);
+            })
+            .catch((error) => {
+              console.error('[PWA] Service Worker registration failed:', error);
+            });
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Detect online/offline status
+      function updateOnlineStatus() {
+        const isOnline = navigator.onLine;
+        document.documentElement.classList.toggle('offline', !isOnline);
+        if (!isOnline) {
+          console.log('[PWA] Offline mode activated');
+        }
+      }
+      
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+      updateOnlineStatus();
+    </script>
+    <style>
+      html.offline body::after {
+        content: 'أنت تعمل بدون إنترنت - البيانات محفوظة محلياً';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #f59e0b;
+        color: white;
+        text-align: center;
+        padding: 8px;
+        z-index: 9999;
+        font-weight: bold;
+        font-size: 14px;
+      }
+    </style>
+  </body>
+</html>

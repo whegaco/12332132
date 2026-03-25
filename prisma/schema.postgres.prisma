@@ -1,0 +1,344 @@
+// HSE SafetyPro Enterprise Schema - PostgreSQL Version for Vercel
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model HSESettings {
+  id                    String   @id @default(cuid())
+
+  // Basic Info
+  userName              String   @default("مدير السلامة")
+  userEmail             String?
+  userPhone             String?
+  userAvatar            String?  // Base64 or URL
+  siteName              String   @default("المشروع الرئيسي")
+  companyName           String   @default("الشركة الهندسية")
+  projectLocation       String?
+  projectContact        String?
+
+  // Notification Settings
+  enableNotifications   Boolean  @default(true)
+  notifyViolations      Boolean  @default(true)
+  notifyPermits         Boolean  @default(true)
+  notifyInspections     Boolean  @default(true)
+  notifyNearMiss        Boolean  @default(true)
+  notifyTBT             Boolean  @default(true)
+
+  // Display Settings
+  theme                 String   @default("auto") // light, dark, auto
+  language              String   @default("ar") // ar, en
+  dateFormat            String   @default("dd/MM/yyyy")
+  fontSize              String   @default("medium") // small, medium, large
+
+  // Data Settings
+  autoBackup            Boolean  @default(true)
+  lastBackupAt          DateTime?
+  dataRetentionDays     Int      @default(365)
+
+  // Work & Safety Settings
+  dailyWorkHours        Int      @default(8) // Daily working hours
+  totalWorkers          Int      @default(10) // Total number of workers
+  safeHours             Int      @default(0) // Calculated safe working hours
+  safeHoursStartDate     DateTime? // Start date for safe hours calculation
+  lastSafeHoursUpdate   DateTime? // Last safe hours update
+
+  // System Info
+  version               String   @default("1.0.0")
+  lastModifiedBy        String?
+  lastModifiedAt        DateTime?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Violation Categories
+model ViolationCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  nameAr      String   // Arabic name
+  description String?
+  icon        String?  // Icon name
+  color       String?  // Color code
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Inspection Templates
+model InspectionTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String   // Arabic name
+  type        String
+  items       String   // JSON array of checklist items
+  totalPoints Int
+  active      Boolean  @default(true)
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Images table for all entities
+model Image {
+  id          String   @id @default(cuid())
+  entityType  String   // violation, permit, inspection, nearmiss, tbt
+  entityId    String   // ID of the related entity
+  imageUrl    String   // URL or base64 of the image
+  thumbnail   String?  // Thumbnail version
+  caption     String?  // Image description
+  isPrimary   Boolean  @default(false)
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+// Attachments table for all entities
+model Attachment {
+  id          String   @id @default(cuid())
+  entityType  String   // violation, permit, inspection, nearmiss, tbt
+  entityId    String
+  fileName    String
+  fileUrl     String
+  fileType    String   // pdf, doc, xls, etc.
+  fileSize    Int      // in bytes
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model Violation {
+  id                  String   @id @default(cuid())
+  desc                String
+  resp                String
+  status              String   @default("open") // open, closed
+  category            String   @default("general") // general, electrical, fire, height, ppe, other
+  severity            String   @default("minor") // critical, major, minor
+  location            String?
+  department          String?
+  reporter            String?
+  reporterName        String?
+  phone               String?
+  email               String?
+  immediateAction     String?
+  rootCause           String?
+  correctiveAction    String?
+  preventiveAction    String?
+  targetDate          DateTime?
+  assignedTo          String?
+  priority            String   @default("medium") // low, medium, high, critical
+  verifiedBy          String?
+  verifiedAt          DateTime?
+  date                DateTime
+  closedAt            DateTime?
+  closedBy            String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status, severity])
+  @@index([date])
+}
+
+model Permit {
+  id                   String   @id @default(cuid())
+  type                 String
+  permitNumber         String?  @unique // Unique permit number
+  loc                  String
+  desc                 String?
+  signature            String?
+  startTime            DateTime?
+  endTime              DateTime?
+  status               String   @default("pending") // pending, approved, rejected, expired
+  riskLevel            String   @default("low") // low, medium, high, very-high
+  ppeRequired          String?
+  precautions          String?  // JSON array of safety measures
+  workDescription      String?
+  hazards              String?  // JSON array of identified hazards
+  approvedBy           String?
+  approvedAt           DateTime?
+  issuedBy             String?
+  issuedAt             DateTime?
+  cancelledBy          String?
+  cancelledAt          DateTime?
+  cancellationReason   String?
+  extensionRequested   Boolean  @default(false)
+  extensionApproved    Boolean  @default(false)
+  newEndTime           DateTime?
+  date                 DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([status, date])
+}
+
+model InspectionReport {
+  id                 String   @id @default(cuid())
+  inspectionNumber   String?  @unique // Unique inspection number
+  type               String
+  status             String   @default("pending") // pending, completed, cancelled
+  score              Int
+  issues             String   // JSON array of unchecked items
+  notes              String?
+  location           String
+  area               String?
+  inspector          String
+  inspectorName      String?
+  department         String?
+  supervisor         String?
+  recommendations    String?
+  followUpDate       DateTime?
+  followUpStatus     String? // pending, completed, overdue
+  followUpNotes      String?
+  complianceRate     Float?   // Percentage
+  totalItems         Int?
+  passedItems        Int?
+  failedItems        Int?
+  signOffRequired    Boolean  @default(false)
+  signOffBy          String?
+  signOffAt          DateTime?
+  date               DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([date, status])
+}
+
+model TBT {
+  id              String   @id @default(cuid())
+  topic           String
+  tbtNumber       String?  @unique // Unique TBT number
+  attendees       String
+  presenterName   String?
+  topics          String?  // JSON array of topics
+  duration        Int?     // duration in minutes
+  location        String?
+  objectives      String?  // JSON array of learning objectives
+  keyPoints       String?  // JSON array of key points discussed
+  questions       String?  // JSON array of questions asked
+  feedback        String?
+  effectiveness   String?  // poor, fair, good, excellent
+  department      String?
+  photo           String?  // Deprecated - use Image table instead
+  signature       String?  // Deprecated
+  date            DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([date])
+}
+
+model NearMiss {
+  id                    String   @id @default(cuid())
+  incidentNumber        String?  @unique // Unique incident number
+  loc                   String
+  desc                  String
+  status                String   @default("open") // open, in-progress, resolved, closed
+  severity              String   @default("medium") // high, medium, low
+  category              String?  // equipment, procedure, environment, behavior, other
+  reportedBy            String?
+  reporterName          String?
+  phone                 String?
+  department            String?
+  shift                 String?
+  weatherCondition      String?
+  timeOfOccurrence      String?
+  potentialConsequence  String?
+  immediateResponse     String?
+  investigationDone     Boolean  @default(false)
+  investigationDetails   String?
+  preventiveAction      String?
+  actionStatus          String?  // pending, in-progress, completed
+  actionDueDate         DateTime?
+  actionCompletedAt     DateTime?
+  resolved              Boolean  @default(false)
+  resolvedAt            DateTime?
+  resolvedBy            String?
+  photo                 String?  // Deprecated - use Image table instead
+  date                  DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([date, status])
+}
+
+// Daily Statistics - Automatic daily record of all HSE metrics
+model DailyStats {
+  id                  String   @id @default(cuid())
+
+  // Date Information
+  date                DateTime @unique // The date for these statistics
+  year                Int      // Year for filtering
+  month               Int      // Month for filtering
+  day                 Int      // Day for filtering
+  dayOfWeek           Int      // 0-6 (Sunday-Saturday)
+  weekNumber          Int      // ISO week number
+
+  // Violations Statistics
+  totalViolations     Int      @default(0)
+  openViolations      Int      @default(0)
+  closedViolations    Int      @default(0)
+  criticalViolations  Int      @default(0)
+  majorViolations     Int      @default(0)
+  minorViolations     Int      @default(0)
+
+  // Permits Statistics
+  totalPermits        Int      @default(0)
+  pendingPermits      Int      @default(0)
+  approvedPermits     Int      @default(0)
+  rejectedPermits     Int      @default(0)
+  expiredPermits      Int      @default(0)
+
+  // Inspections Statistics
+  totalInspections    Int      @default(0)
+  completedInspections Int     @default(0)
+  averageScore        Float    @default(0) // 0-100
+  complianceRate      Float    @default(0) // 0-100
+  failedItems         Int      @default(0)
+  passedItems         Int      @default(0)
+
+  // Near Misses Statistics
+  totalNearMisses     Int      @default(0)
+  openNearMisses      Int      @default(0)
+  resolvedNearMisses  Int      @default(0)
+  highSeverityNearMisses Int   @default(0)
+  mediumSeverityNearMisses Int @default(0)
+  lowSeverityNearMisses Int   @default(0)
+
+  // TBT Statistics
+  totalTBTs           Int      @default(0)
+  totalAttendees      Int      @default(0) // Total attendees count
+  averageDuration     Float    @default(0) // Average duration in minutes
+
+  // Safety Metrics
+  safeManHours        Int      @default(0) // Daily safe man-hours
+  cumulativeSafeHours Int      @default(0) // Cumulative safe hours from project start
+  incidentRate        Float    @default(0) // TRIR-like metric
+
+  // Comparison Metrics (percentage change from previous day)
+  violationsChange    Float?   // Percentage change from previous day
+  permitsChange       Float?   // Percentage change from previous day
+  inspectionsChange   Float?   // Percentage change from previous day
+  nearMissesChange    Float?   // Percentage change from previous day
+
+  // Additional Data (stored as JSON for flexibility)
+  additionalData      String?  // JSON string for additional metrics
+
+  // Metadata
+  recordedAt          DateTime @default(now()) // When these stats were recorded
+  recordedBy          String?  // Who/what recorded these stats
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([date])
+  @@index([year, month])
+  @@index([year, month, day])
+  @@index([weekNumber])
+}
